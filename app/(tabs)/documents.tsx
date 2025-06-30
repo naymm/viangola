@@ -26,7 +26,7 @@ import { supabase } from '@/lib/supabase';
 import RNPickerSelect from 'react-native-picker-select';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import * as DocumentPicker from 'expo-document-picker';
+
 
 type Document = Database['public']['Tables']['documents']['Row'];
 
@@ -149,10 +149,19 @@ export default function DocumentsScreen() {
 
   const handleSaveDocument = async () => {
     if (!user) return;
-    if (!selectedFile || !selectedFile.name.endsWith('.pdf')) {
-      Alert.alert('Erro', 'Apenas arquivos PDF são permitidos.');
+    if (!selectedFile) {
+      Alert.alert('Erro', 'Por favor, selecione uma foto do documento.');
       return;
     }
+    
+    // Verificar se é uma imagem
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.heic'];
+    const fileExtension = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'));
+    if (!validExtensions.includes(fileExtension)) {
+      Alert.alert('Erro', 'Apenas imagens (JPG, PNG, HEIC) são permitidas.');
+      return;
+    }
+    
     setIsUploading(true);
     try {
       const upload = await uploadDocumentImage(selectedFile.uri, user.id);
@@ -163,11 +172,10 @@ export default function DocumentsScreen() {
         file_name: fileName,
         size: size,
         type: selectedType,
-        tipo: mimeType,
         vehicle_plate: selectedVehicle,
         owner_id: user.id,
-        url: url,
-        file_path: filePath,
+        file_url: url,
+        upload_date: new Date().toISOString(),
         expiry_date: expiryDate || null,
         status
       });
@@ -200,81 +208,100 @@ export default function DocumentsScreen() {
     clearForm();
   };
 
-  // Helper para converter base64 em Blob
-  function base64ToBlob(base64: string, mimeType: string) {
-    const byteCharacters = atob(base64);
-    const byteArrays = [];
-    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-      const slice = byteCharacters.slice(offset, offset + 512);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      byteArrays.push(byteArray);
-    }
-    return new Blob(byteArrays, { type: mimeType });
-  }
+
 
   // Função para upload para Supabase Storage
   async function uploadDocumentImage(uri: string, userId: string) {
     console.log('URI recebida para upload:', uri);
-    let blob: Blob;
+    
     try {
-      // Ler como base64 usando expo-file-system
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      blob = base64ToBlob(base64, 'application/pdf');
+      // Determinar o tipo MIME baseado na extensão do arquivo
+      const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      let mimeType = 'image/jpeg';
+      if (ext === 'png') mimeType = 'image/png';
+      else if (ext === 'heic') mimeType = 'image/heic';
+      
+      const fileName = `doc_${userId}_${Date.now()}.${ext}`;
+      const filePath = fileName;
+      
+      // Verificar se o arquivo existe
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      console.log('Informações do arquivo:', fileInfo);
+      
+      if (!fileInfo.exists) {
+        throw new Error('Arquivo não encontrado');
+      }
+      
+      // Ler o arquivo como base64
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      console.log('Base64 gerado, tamanho:', base64.length);
+      
+      // Converter base64 para Uint8Array (mais confiável que blob)
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Verificar se a conversão foi bem-sucedida
+      if (bytes.length === 0) {
+        throw new Error('Conversão base64 falhou - bytes vazios');
+      }
+      
+      console.log('Bytes gerados, tamanho:', bytes.length);
+      
+      if (bytes.length === 0) {
+        throw new Error('Bytes gerados com tamanho 0');
+      }
+      
+      const { data, error } = await supabase.storage.from('documents').upload(filePath, bytes, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: mimeType,
+      });
+      
+      if (error) {
+        console.error('Erro no upload para Supabase Storage:', error);
+        throw error;
+      }
+      
+      const { data: publicUrl } = supabase.storage.from('documents').getPublicUrl(filePath);
+      console.log('URL pública gerada:', publicUrl?.publicUrl);
+      
+      return {
+        fileName,
+        url: publicUrl?.publicUrl,
+        size: bytes.length,
+        mimeType: mimeType,
+        filePath
+      };
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível ler o arquivo PDF para upload.');
-      console.error('Erro ao gerar blob do PDF:', e);
+      Alert.alert('Erro', 'Não foi possível fazer upload da imagem.');
+      console.error('Erro ao fazer upload da imagem:', e);
       throw e;
     }
-    console.log('Blob gerado:', blob);
-    console.log('Tipo do blob:', blob.type);
-    console.log('Tamanho do blob:', blob.size);
-    const ext = uri.split('.').pop() || 'pdf';
-    const fileName = `doc_${userId}_${Date.now()}.${ext}`;
-    const filePath = fileName;
-    const { data, error } = await supabase.storage.from('documents').upload(filePath, blob, {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: blob.type || 'application/pdf',
-    });
-    if (error) {
-      console.error('Erro no upload para Supabase Storage:', error);
-      throw error;
-    }
-    const { data: publicUrl } = supabase.storage.from('documents').getPublicUrl(filePath);
-    console.log('URL pública gerada:', publicUrl?.publicUrl);
-    return {
-      fileName,
-      url: publicUrl?.publicUrl,
-      size: blob.size,
-      mimeType: blob.type || 'application/pdf',
-      filePath
-    };
   }
 
-  // Função para selecionar apenas PDF
-  const pickPdf = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: 'application/pdf',
-      copyToCacheDirectory: true,
-      multiple: false,
+  // Função para selecionar imagem da galeria
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
     });
-    console.log('Resultado do picker:', result);
-    if (!result.canceled && result.assets && result.assets.length > 0) {
+    
+    if (!result.canceled && result.assets[0]?.uri) {
       const asset = result.assets[0];
-      const { uri, name, mimeType } = asset;
-      console.log('PDF selecionado:', { uri, name, mimeType });
-      if ((mimeType && mimeType !== 'application/pdf') || !name.endsWith('.pdf')) {
-        Alert.alert('Erro', 'Apenas arquivos PDF são permitidos.');
-        return;
-      }
-      setSelectedFile({ uri, name });
-      setFileName(name);
-      setFileUrl(uri);
-      Alert.alert('PDF selecionado', `Arquivo: ${name}`);
+      const fileName = `doc_${Date.now()}.jpg`;
+      console.log('Imagem selecionada:', { uri: asset.uri, name: fileName });
+      setSelectedFile({ uri: asset.uri, name: fileName });
+      setFileName(fileName);
+      setFileUrl(asset.uri);
+      Alert.alert('Imagem selecionada', `Arquivo: ${fileName}`);
     }
   };
 
@@ -536,11 +563,11 @@ export default function DocumentsScreen() {
               </View>
 
               <View style={styles.uploadOptions}>
-                <TouchableOpacity style={styles.uploadOption} onPress={pickPdf}>
+                <TouchableOpacity style={styles.uploadOption} onPress={pickImage}>
                   <Upload size={32} color="#059669" strokeWidth={2} />
-                  <Text style={styles.uploadOptionTitle}>Selecionar PDF</Text>
+                  <Text style={styles.uploadOptionTitle}>Selecionar Imagem</Text>
                   <Text style={styles.uploadOptionText}>
-                    Selecione um arquivo PDF
+                    Selecione uma foto do documento
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -625,8 +652,18 @@ export default function DocumentsScreen() {
 
               <View style={styles.viewerContent}>
                 <View style={styles.documentPreview}>
-                  <FileText size={48} color="#64748B" strokeWidth={2} />
-                  <Text style={styles.previewText}>Pré-visualização do documento</Text>
+                  {selectedDocument.file_url ? (
+                    <Image 
+                      source={{ uri: selectedDocument.file_url }} 
+                      style={styles.documentImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <FileText size={48} color="#64748B" strokeWidth={2} />
+                  )}
+                  <Text style={styles.previewText}>
+                    {selectedDocument.file_url ? 'Imagem do documento' : 'Pré-visualização do documento'}
+                  </Text>
                   <Text style={styles.previewFileName}>{selectedDocument.file_name}</Text>
                 </View>
 
@@ -893,6 +930,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E2E8F0',
     borderStyle: 'dashed',
+  },
+  documentImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   previewText: {
     fontSize: 16,
