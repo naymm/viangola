@@ -44,6 +44,7 @@ export default function DocumentsScreen() {
   const [fileUrl, setFileUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (showUploadModal && user) {
@@ -671,11 +672,13 @@ export default function DocumentsScreen() {
               <View style={styles.viewerContent}>
                 <View style={styles.documentPreview}>
                   {selectedDocument.file_url ? (
-                    <Image 
-                      source={{ uri: selectedDocument.file_url }} 
-                      style={styles.documentImage}
-                      resizeMode="contain"
-                    />
+                    <TouchableOpacity onPress={() => selectedDocument.file_url && setSelectedImageUrl(selectedDocument.file_url)}>
+                      <Image 
+                        source={{ uri: selectedDocument.file_url }} 
+                        style={styles.documentImage}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
                   ) : (
                     <FileText size={48} color="#64748B" strokeWidth={2} />
                   )}
@@ -696,6 +699,17 @@ export default function DocumentsScreen() {
               </View>
             </SafeAreaView>
           )}
+        </Modal>
+
+        <Modal visible={!!selectedImageUrl} transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 2 }} onPress={() => setSelectedImageUrl(null)}>
+              <Text style={{ color: '#fff', fontSize: 28 }}>✕</Text>
+            </TouchableOpacity>
+            {selectedImageUrl && (
+              <Image source={{ uri: selectedImageUrl }} style={{ width: '90%', height: '70%', borderRadius: 12, resizeMode: 'contain' }} />
+            )}
+          </View>
         </Modal>
       </SafeAreaView>
     </PermissionGate>

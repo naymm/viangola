@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, Alert, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, Alert, ScrollView, Image, Modal } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Calendar, Save, Edit3 } from 'lucide-react-native';
@@ -20,6 +20,7 @@ export default function MinhaCartaScreen() {
   const [photoFront, setPhotoFront] = useState<string | null>(driver?.photo_front || null);
   const [photoBack, setPhotoBack] = useState<string | null>(driver?.photo_back || null);
   const [uploading, setUploading] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) fetchDriver();
@@ -244,7 +245,9 @@ export default function MinhaCartaScreen() {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
               <View style={{ flex: 1, alignItems: 'center' }}>
-                <TouchableOpacity onPress={() => pickImage(setPhotoFront)} style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, backgroundColor: '#F8FAFC', width: 140, height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => editing ? pickImage(setPhotoFront) : (photoFront && setSelectedImageUrl(photoFront))}
+                  style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, backgroundColor: '#F8FAFC', width: 140, height: 100, justifyContent: 'center', alignItems: 'center' }}>
                   {photoFront ? (
                     <Image source={{ uri: photoFront }} style={{ width: 120, height: 80, borderRadius: 6 }} />
                   ) : (
@@ -254,7 +257,9 @@ export default function MinhaCartaScreen() {
                 <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>Frente</Text>
               </View>
               <View style={{ flex: 1, alignItems: 'center' }}>
-                <TouchableOpacity onPress={() => pickImage(setPhotoBack)} style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, backgroundColor: '#F8FAFC', width: 140, height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => editing ? pickImage(setPhotoBack) : (photoBack && setSelectedImageUrl(photoBack))}
+                  style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, backgroundColor: '#F8FAFC', width: 140, height: 100, justifyContent: 'center', alignItems: 'center' }}>
                   {photoBack ? (
                     <Image source={{ uri: photoBack }} style={{ width: 120, height: 80, borderRadius: 6 }} />
                   ) : (
@@ -278,6 +283,16 @@ export default function MinhaCartaScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
+      <Modal visible={!!selectedImageUrl} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 2 }} onPress={() => setSelectedImageUrl(null)}>
+            <Text style={{ color: '#fff', fontSize: 28 }}>✕</Text>
+          </TouchableOpacity>
+          {selectedImageUrl && (
+            <Image source={{ uri: selectedImageUrl }} style={{ width: '90%', height: '70%', borderRadius: 12, resizeMode: 'contain' }} />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
