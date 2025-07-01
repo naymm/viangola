@@ -97,7 +97,7 @@ export default function HomeScreen() {
       visible: hasPermission('vehicles', 'read')
     },
     { 
-      label: 'Condutores Ativos', 
+      label: 'Condutores Activos', 
       value: drivers?.filter(d => d.status === 'valid').length.toString() || '0', 
       icon: Users, 
       color: '#059669', 
@@ -292,7 +292,7 @@ export default function HomeScreen() {
               <Text style={styles.userName}>{user.name}</Text>
               <Text style={styles.userType}>{getRoleTitle(user.role)}</Text>
               {user.badge && (
-                <Text style={styles.userBadge}>Crachá: {user.badge}</Text>
+                <Text style={styles.userBadge}>NIP: {user.badge}</Text>
               )}
               {user.company && (
                 <Text style={styles.userCompany}>{user.company}</Text>

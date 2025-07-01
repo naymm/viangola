@@ -260,7 +260,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 {userData.badge && (
-                  <Text style={styles.badgeText}>Crachá: {userData.badge}</Text>
+                  <Text style={styles.badgeText}>NIP: {userData.badge}</Text>
                 )}
               </View>
 
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
 
           {/* Quick Actions */}
           <View style={styles.actionsContainer}>
-            <Text style={styles.sectionTitle}>Ações Rápidas</Text>
+            <Text style={styles.sectionTitle}>Acções Rápidas</Text>
             
             <TouchableOpacity
               style={styles.actionButton}

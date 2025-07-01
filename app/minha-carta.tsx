@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Calendar, Save, Edit3 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function MinhaCartaScreen() {
   const { user } = useAuth();
@@ -48,79 +49,85 @@ export default function MinhaCartaScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.license_number || !/^LD-\d{6}$/.test(form.license_number)) {
-      Alert.alert('Erro', 'Número da carta inválido. Use LD-XXXXXX');
-      return;
-    }
-    if (!form.categories) {
-      Alert.alert('Erro', 'Informe as categorias');
-      return;
-    }
-    if (!form.issue_date || !form.expiry_date) {
-      Alert.alert('Erro', 'Informe as datas');
-      return;
-    }
-    setLoading(true);
-    setUploading(true);
-    let photoFrontUrl = photoFront;
-    let photoBackUrl = photoBack;
-    if (photoFront && !photoFront.startsWith('http')) {
-      photoFrontUrl = await uploadDriverPhoto(photoFront, user.id, 'front');
-    }
-    if (photoBack && !photoBack.startsWith('http')) {
-      photoBackUrl = await uploadDriverPhoto(photoBack, user.id, 'back');
-    }
-    setUploading(false);
-    let result;
-    // Converter categorias para array se necessário
-    const categoriesArray = form.categories.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    if (driver) {
-      // Atualizar
-      result = await supabase.from('drivers').update({
-        license_number: form.license_number,
-        categories: categoriesArray,
-        issue_date: form.issue_date,
-        expiry_date: form.expiry_date,
-        photo_front: photoFrontUrl,
-        photo_back: photoBackUrl,
-      }).eq('id', driver.id);
-    } else {
-      // Verificar se já existe carta para este usuário
-      const { data: existing, error: fetchError } = await supabase
-        .from('drivers')
-        .select('id')
-        .eq('owner_id', user.id)
-        .maybeSingle();
-      if (existing) {
-        setLoading(false);
-        Alert.alert('Atenção', 'Você já possui uma carta cadastrada. Só é possível editar.');
-        fetchDriver();
+    try {
+      if (!form.license_number || !/^LD-\d{6}$/.test(form.license_number)) {
+        Alert.alert('Erro', 'Número da carta inválido. Use LD-XXXXXX');
         return;
       }
-      // Criar
-      result = await supabase.from('drivers').insert({
-        owner_id: user.id,
-        user_id: user.id,
-        name: user.name,
-        address: user.address,
-        phone: user.phone,
-        email: user.email,
-        license_number: form.license_number,
-        categories: categoriesArray,
-        issue_date: form.issue_date,
-        expiry_date: form.expiry_date,
-        status: 'active',
-        photo_front: photoFrontUrl,
-        photo_back: photoBackUrl,
-      });
-    }
-    setLoading(false);
-    if (result.error) {
-      Alert.alert('Erro', 'Não foi possível salvar a carta: ' + result.error.message);
-    } else {
-      Alert.alert('Sucesso', 'Dados da carta salvos!');
-      setEditing(false);
-      fetchDriver();
+      if (!form.categories) {
+        Alert.alert('Erro', 'Informe as categorias');
+        return;
+      }
+      if (!form.issue_date || !form.expiry_date) {
+        Alert.alert('Erro', 'Informe as datas');
+        return;
+      }
+      setLoading(true);
+      setUploading(true);
+      let photoFrontUrl = photoFront;
+      let photoBackUrl = photoBack;
+      if (photoFront && !photoFront.startsWith('http')) {
+        photoFrontUrl = await uploadDriverPhoto(photoFront, user.id, 'front');
+      }
+      if (photoBack && !photoBack.startsWith('http')) {
+        photoBackUrl = await uploadDriverPhoto(photoBack, user.id, 'back');
+      }
+      setUploading(false);
+      let result;
+      // Converter categorias para array se necessário
+      const categoriesArray = form.categories.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+      if (driver) {
+        result = await supabase.from('drivers').update({
+          license_number: form.license_number,
+          categories: categoriesArray,
+          issue_date: form.issue_date,
+          expiry_date: form.expiry_date,
+          photo_front: photoFrontUrl,
+          photo_back: photoBackUrl,
+        }).eq('id', driver.id);
+      } else {
+        // Verificar se já existe carta para este usuário
+        const { data: existing, error: fetchError } = await supabase
+          .from('drivers')
+          .select('id')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+        if (existing) {
+          setLoading(false);
+          Alert.alert('Atenção', 'Você já possui uma carta cadastrada. Só é possível editar.');
+          fetchDriver();
+          return;
+        }
+        // Criar
+        result = await supabase.from('drivers').insert({
+          owner_id: user.id,
+          user_id: user.id,
+          name: user.name,
+          address: user.address,
+          phone: user.phone,
+          email: user.email,
+          license_number: form.license_number,
+          categories: categoriesArray,
+          issue_date: form.issue_date,
+          expiry_date: form.expiry_date,
+          status: 'active',
+          photo_front: photoFrontUrl,
+          photo_back: photoBackUrl,
+        });
+      }
+      setLoading(false);
+      if (result.error) {
+        Alert.alert('Erro', 'Não foi possível salvar a carta: ' + result.error.message);
+      } else {
+        Alert.alert('Sucesso', 'Dados da carta salvos!');
+        setEditing(false);
+        fetchDriver();
+      }
+    } catch (err) {
+      setLoading(false);
+      setUploading(false);
+      Alert.alert('Erro ao salvar', err instanceof Error ? err.message : String(err));
+      return;
     }
   };
 

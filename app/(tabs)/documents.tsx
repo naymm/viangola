@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import RNPickerSelect from 'react-native-picker-select';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 
 type Document = Database['public']['Tables']['documents']['Row'];
