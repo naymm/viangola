@@ -239,6 +239,7 @@ export interface Database {
           contest_reason?: string
           created_at: string
           updated_at: string
+          rupe_reference?: string
         }
         Insert: {
           id?: string
@@ -263,6 +264,7 @@ export interface Database {
           contest_reason?: string
           created_at?: string
           updated_at?: string
+          rupe_reference?: string
         }
         Update: {
           id?: string
@@ -287,6 +289,7 @@ export interface Database {
           contest_reason?: string
           created_at?: string
           updated_at?: string
+          rupe_reference?: string
         }
       }
       notifications: {

@@ -11,6 +11,7 @@ import {
   Modal,
   RefreshControl,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -44,6 +45,7 @@ export default function FinesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingFine, setEditingFine] = useState<Fine | null>(null);
+  const [payingFineId, setPayingFineId] = useState<string | null>(null);
 
   // Estados para formulário
   const [formData, setFormData] = useState({
@@ -301,6 +303,31 @@ export default function FinesScreen() {
     }
   };
 
+  // Função para gerar referência RUPE (simulada)
+  const generateRupeReference = () => {
+    // Exemplo: RUPE + 8 dígitos aleatórios
+    return 'RUPE' + Math.floor(10000000 + Math.random() * 90000000);
+  };
+
+  // Função para pagar multa
+  const handlePayFine = async (fine: Fine) => {
+    setPayingFineId(fine.id);
+    try {
+      const rupe = generateRupeReference();
+      const { error } = await supabase
+        .from('fines')
+        .update({ rupe_reference: rupe })
+        .eq('id', fine.id);
+      if (error) throw error;
+      Alert.alert('Referência gerada', `Referência RUPE: ${rupe}`);
+      await loadFines();
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível gerar a referência de pagamento.');
+    } finally {
+      setPayingFineId(null);
+    }
+  };
+
   const filteredFines = fines.filter(fine =>
     fine.vehicle_plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
     fine.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -458,6 +485,29 @@ export default function FinesScreen() {
                       </View>
                     )}
                   </View>
+
+                  {/* RUPE Reference & Payment Button */}
+                  {fine.rupe_reference ? (
+                    <View style={{ marginTop: 8, padding: 8, backgroundColor: '#e0f2fe', borderRadius: 8 }}>
+                      <Text style={{ color: '#0369a1', fontWeight: 'bold' }}>Referência RUPE:</Text>
+                      <Text selectable style={{ color: '#0369a1', fontSize: 16 }}>{fine.rupe_reference}</Text>
+                    </View>
+                  ) : ((user?.role === 'citizen' || user?.role === 'company') && (
+                    <TouchableOpacity
+                      style={{ marginTop: 8, backgroundColor: '#2563eb', borderRadius: 8, padding: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                      onPress={() => handlePayFine(fine)}
+                      disabled={payingFineId === fine.id}
+                    >
+                      {payingFineId === fine.id ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <>
+                          <Euro size={18} color="#fff" style={{ marginRight: 6 }} />
+                          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Pagar Multa</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  ))}
                 </View>
               ))
             )}
