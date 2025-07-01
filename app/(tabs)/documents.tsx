@@ -624,7 +624,7 @@ export default function DocumentsScreen() {
                       <DateTimePicker
                         value={expiryDate ? new Date(expiryDate) : new Date()}
                         mode="date"
-                        display="default"
+                        display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
                         onChange={(event, date) => {
                           setShowExpiryPicker(false);
                           if (date) setExpiryDate(date.toISOString().split('T')[0]);

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, Alert, ScrollView, Image } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Calendar, Save, Edit3 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 export default function MinhaCartaScreen() {
   const { user } = useAuth();
@@ -15,6 +17,9 @@ export default function MinhaCartaScreen() {
     issue_date: '',
     expiry_date: '',
   });
+  const [photoFront, setPhotoFront] = useState<string | null>(driver?.photo_front || null);
+  const [photoBack, setPhotoBack] = useState<string | null>(driver?.photo_back || null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (user) fetchDriver();
@@ -35,6 +40,8 @@ export default function MinhaCartaScreen() {
         issue_date: data.issue_date || '',
         expiry_date: data.expiry_date || '',
       });
+      setPhotoFront(data.photo_front || null);
+      setPhotoBack(data.photo_back || null);
     }
     setLoading(false);
   };
@@ -53,6 +60,16 @@ export default function MinhaCartaScreen() {
       return;
     }
     setLoading(true);
+    setUploading(true);
+    let photoFrontUrl = photoFront;
+    let photoBackUrl = photoBack;
+    if (photoFront && !photoFront.startsWith('http')) {
+      photoFrontUrl = await uploadDriverPhoto(photoFront, user.id, 'front');
+    }
+    if (photoBack && !photoBack.startsWith('http')) {
+      photoBackUrl = await uploadDriverPhoto(photoBack, user.id, 'back');
+    }
+    setUploading(false);
     let result;
     // Converter categorias para array se necessário
     const categoriesArray = form.categories.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
@@ -63,6 +80,8 @@ export default function MinhaCartaScreen() {
         categories: categoriesArray,
         issue_date: form.issue_date,
         expiry_date: form.expiry_date,
+        photo_front: photoFrontUrl,
+        photo_back: photoBackUrl,
       }).eq('id', driver.id);
     } else {
       // Verificar se já existe carta para este usuário
@@ -90,6 +109,8 @@ export default function MinhaCartaScreen() {
         issue_date: form.issue_date,
         expiry_date: form.expiry_date,
         status: 'active',
+        photo_front: photoFrontUrl,
+        photo_back: photoBackUrl,
       });
     }
     setLoading(false);
@@ -101,6 +122,38 @@ export default function MinhaCartaScreen() {
       fetchDriver();
     }
   };
+
+  // Função para selecionar imagem (frente ou verso)
+  const pickImage = async (setImage: (uri: string) => void) => {
+    Alert.alert('Selecionar Imagem', 'Escolha uma opção:', [
+      { text: 'Câmera', onPress: async () => {
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+        if (!result.canceled && result.assets[0]?.uri) setImage(result.assets[0].uri);
+      }},
+      { text: 'Galeria', onPress: async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+        if (!result.canceled && result.assets[0]?.uri) setImage(result.assets[0].uri);
+      }},
+      { text: 'Cancelar', style: 'cancel' }
+    ]);
+  };
+
+  // Função para upload para Supabase Storage
+  async function uploadDriverPhoto(uri: string, userId: string, side: 'front' | 'back') {
+    const ext = uri.split('.').pop() || 'jpg';
+    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+    const fileName = `driver_${userId}_${side}_${Date.now()}.${ext}`;
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+    if (!fileInfo.exists) throw new Error('Arquivo não encontrado');
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const { error } = await supabase.storage.from('documents').upload(fileName, bytes, { contentType: mimeType, upsert: true });
+    if (error) throw error;
+    const { data: publicUrl } = supabase.storage.from('documents').getPublicUrl(fileName);
+    return publicUrl?.publicUrl;
+  }
 
   if (loading) {
     return (
@@ -188,6 +241,28 @@ export default function MinhaCartaScreen() {
               ) : (
                 <Text style={styles.value}>{driver?.expiry_date || '-'}</Text>
               )}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => pickImage(setPhotoFront)} style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, backgroundColor: '#F8FAFC', width: 140, height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                  {photoFront ? (
+                    <Image source={{ uri: photoFront }} style={{ width: 120, height: 80, borderRadius: 6 }} />
+                  ) : (
+                    <Text style={{ color: '#64748B', textAlign: 'center' }}>Selecionar Foto da Frente</Text>
+                  )}
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>Frente</Text>
+              </View>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => pickImage(setPhotoBack)} style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, backgroundColor: '#F8FAFC', width: 140, height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                  {photoBack ? (
+                    <Image source={{ uri: photoBack }} style={{ width: 120, height: 80, borderRadius: 6 }} />
+                  ) : (
+                    <Text style={{ color: '#64748B', textAlign: 'center' }}>Selecionar Foto do Verso</Text>
+                  )}
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>Verso</Text>
+              </View>
             </View>
           </View>
         </View>
