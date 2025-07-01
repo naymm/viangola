@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/database';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import { saveDeviceToken } from '@/lib/utils';
 
 type User = Database['public']['Tables']['users']['Row'];
 
@@ -228,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           driverLoaded: false,
         });
         await fetchDriver(user.id);
+        await registerForPushNotificationsAsync(user.id);
         return true;
       }
 
@@ -262,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         driverLoaded: false,
       });
       await fetchDriver(user.id);
+      await registerForPushNotificationsAsync(user.id);
       return true;
 
     } catch (error) {
@@ -313,6 +319,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const permission = permissions.find(p => p.resource === resource);
     return permission ? permission.actions.includes(action) : false;
   };
+
+  // Função para registrar o token do dispositivo
+  async function registerForPushNotificationsAsync(userId: string) {
+    let token;
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        console.log('Permissão de notificação não concedida!');
+        return;
+      }
+      token = (await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.expoConfig?.extra?.projectId,
+      })).data;
+      await saveDeviceToken(userId, token, Device.osName || 'unknown');
+      console.log('Expo push token salvo:', token);
+    } else {
+      console.log('Deve usar um dispositivo físico para notificações push');
+    }
+  }
 
   return (
     <AuthContext.Provider value={{

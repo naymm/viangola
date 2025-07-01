@@ -12,6 +12,8 @@ import {
   Image,
   Platform,
   TextInput,
+  Appearance,
+  useColorScheme,
 } from 'react-native';
 import { FileText, Camera, Upload, Shield, Calendar, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Eye, Download, X, Plus, Car, Book, Search, Tag } from 'lucide-react-native';
 import DocumentCard from '@/components/DocumentCard';
@@ -46,6 +48,7 @@ export default function DocumentsScreen() {
   const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     if (showUploadModal && user) {
@@ -617,16 +620,49 @@ export default function DocumentsScreen() {
                     onChangeText={setExpiryDate}
                     placeholder="DD/MM/AAAA"
                   />
+                ) : Platform.OS === 'ios' ? (
+                  <>
+                    <TouchableOpacity onPress={() => setShowExpiryPicker(true)} style={[styles.dateInput, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }]}> 
+                      <Text style={{ color: expiryDate ? '#111' : '#888', fontSize: 16 }}>
+                        {expiryDate ? formatDate(expiryDate) : 'Selecione a data'}
+                      </Text>
+                      <Calendar size={18} color="#2563EB" style={{ marginLeft: 8 }} />
+                    </TouchableOpacity>
+                    <Modal visible={showExpiryPicker} transparent animationType="slide" onRequestClose={() => setShowExpiryPicker(false)}>
+                      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                        <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 }}>
+                          <View style={{ backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden' }}>
+                            <DateTimePicker
+                              value={expiryDate ? new Date(expiryDate) : new Date()}
+                              mode="date"
+                              display="spinner"
+                              themeVariant="light"
+                              onChange={(event, date) => {
+                                if (event.type === 'set' && date) {
+                                  setExpiryDate(date.toISOString().split('T')[0]);
+                                }
+                                setShowExpiryPicker(false);
+                              }}
+                              style={{ width: '100%' }}
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    </Modal>
+                  </>
                 ) : (
                   <>
-                    <TouchableOpacity onPress={() => setShowExpiryPicker(true)} style={styles.dateInput}>
-                      <Text style={{ color: expiryDate ? '#111' : '#888' }}>{expiryDate ? formatDate(expiryDate) : 'Selecione a data'}</Text>
+                    <TouchableOpacity onPress={() => setShowExpiryPicker(true)} style={[styles.dateInput, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }]}> 
+                      <Text style={{ color: expiryDate ? '#111' : '#888', fontSize: 16 }}>
+                        {expiryDate ? formatDate(expiryDate) : 'Selecione a data'}
+                      </Text>
+                      <Calendar size={18} color="#2563EB" style={{ marginLeft: 8 }} />
                     </TouchableOpacity>
                     {showExpiryPicker && (
                       <DateTimePicker
                         value={expiryDate ? new Date(expiryDate) : new Date()}
                         mode="date"
-                        display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
+                        display="calendar"
                         onChange={(event, date) => {
                           setShowExpiryPicker(false);
                           if (date) setExpiryDate(date.toISOString().split('T')[0]);

@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 // Função para formatar matrícula angolana no padrão LD-XX-XX-XX ou LDA-XX-XX-XX
 export function formatAngolaPlate(plate: string): string {
   // Remove todos os caracteres não alfanuméricos
@@ -130,4 +132,9 @@ export function validateAngolaPlate(plate: string): boolean {
   }
   
   return false;
+}
+
+export async function saveDeviceToken(userId: string, token: string, platform: string) {
+  if (!userId || !token) return;
+  await supabase.from('device_tokens').upsert({ user_id: userId, token, platform });
 } 
