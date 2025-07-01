@@ -664,7 +664,6 @@ export default function DocumentsScreen() {
                   <Text style={styles.previewText}>
                     {selectedDocument.file_url ? 'Imagem do documento' : 'Pré-visualização do documento'}
                   </Text>
-                  <Text style={styles.previewFileName}>{selectedDocument.file_name}</Text>
                 </View>
 
                 <View style={styles.viewerActions}>
@@ -921,21 +920,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   documentPreview: {
-    flex: 1,
+    width: '100%',
+    height: 340,
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 20,
+    marginVertical: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#E2E8F0',
     borderStyle: 'dashed',
+    overflow: 'hidden',
   },
   documentImage: {
     width: '100%',
-    height: 300,
-    borderRadius: 12,
-    marginBottom: 16,
+    height: '100%',
+    borderRadius: 16,
   },
   previewText: {
     fontSize: 16,
