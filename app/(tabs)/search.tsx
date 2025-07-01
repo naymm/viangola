@@ -8,6 +8,8 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  Image,
+  Modal,
 } from 'react-native';
 import { Search, Car, User, Shield, Calendar, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, FileText, Camera, X } from 'lucide-react-native';
 import PermissionGate from '@/components/PermissionGate';
@@ -24,6 +26,7 @@ export default function SearchScreen() {
   const [searchResult, setSearchResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [pendingFines, setPendingFines] = useState<any[]>([]);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -442,15 +445,41 @@ export default function SearchScreen() {
       </View>
       )}
 
-        <View style={styles.actionButtons}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Fotos da Carta de Condução</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 8 }}>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Frente</Text>
+            {result.photo_front ? (
+              <TouchableOpacity onPress={() => setSelectedImageUrl(result.photo_front)}>
+                <Image source={{ uri: result.photo_front }} style={{ width: 140, height: 100, borderRadius: 8, backgroundColor: '#F1F5F9' }} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={{ color: '#64748B' }}>Sem foto</Text>
+            )}
+          </View>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Verso</Text>
+            {result.photo_back ? (
+              <TouchableOpacity onPress={() => setSelectedImageUrl(result.photo_back)}>
+                <Image source={{ uri: result.photo_back }} style={{ width: 140, height: 100, borderRadius: 8, backgroundColor: '#F1F5F9' }} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={{ color: '#64748B' }}>Sem foto</Text>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.actionButton}
           onPress={handleApplyFine}
         >
           <FileText size={16} color="#FFFFFF" strokeWidth={2} />
           <Text style={styles.actionButtonText}>Aplicar Multa</Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -569,6 +598,16 @@ export default function SearchScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
+      <Modal visible={!!selectedImageUrl} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 2 }} onPress={() => setSelectedImageUrl(null)}>
+            <Text style={{ color: '#fff', fontSize: 28 }}>✕</Text>
+          </TouchableOpacity>
+          {selectedImageUrl && (
+            <Image source={{ uri: selectedImageUrl }} style={{ width: '90%', height: '70%', borderRadius: 12, resizeMode: 'contain' }} />
+          )}
+        </View>
+      </Modal>
     </PermissionGate>
   );
 }
