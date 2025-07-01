@@ -13,7 +13,7 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
-import { FileText, Camera, Upload, Shield, Calendar, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Eye, Download, X, Plus } from 'lucide-react-native';
+import { FileText, Camera, Upload, Shield, Calendar, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Eye, Download, X, Plus, Car, Book, Search, Tag } from 'lucide-react-native';
 import DocumentCard from '@/components/DocumentCard';
 import PermissionGate from '@/components/PermissionGate';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,6 +80,13 @@ export default function DocumentsScreen() {
     { value: 'Livrete', label: 'Livretes', count: documents?.filter(d => d.type === 'Livrete').length || 0 },
     { value: 'Inspeção', label: 'Inspeções', count: documents?.filter(d => d.type === 'Inspeção').length || 0 },
     { value: 'Título de Propriedade', label: 'Títulos', count: documents?.filter(d => d.type === 'Título de Propriedade').length || 0 },
+  ];
+
+  const documentTypesWithIcons = [
+    { label: 'Seguro', value: 'Seguro', icon: <Shield size={18} color="#64748B" /> },
+    { label: 'Livrete', value: 'Livrete', icon: <Book size={18} color="#64748B" /> },
+    { label: 'Inspeção', value: 'Inspeção', icon: <Search size={18} color="#64748B" /> },
+    { label: 'Título de Propriedade', value: 'Título de Propriedade', icon: <Tag size={18} color="#64748B" /> },
   ];
 
   const handleUploadDocument = () => {
@@ -208,7 +215,18 @@ export default function DocumentsScreen() {
     clearForm();
   };
 
-
+  // Nova função para escolher fonte da imagem
+  const handlePickImage = () => {
+    Alert.alert(
+      'Anexar Documento',
+      'Escolha uma opção:',
+      [
+        { text: 'Câmera', onPress: openCamera },
+        { text: 'Galeria', onPress: openGallery },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
 
   // Função para upload para Supabase Storage
   async function uploadDocumentImage(uri: string, userId: string) {
@@ -315,6 +333,20 @@ export default function DocumentsScreen() {
     if (diffDays < 0) return 'expired';
     if (diffDays <= 30) return 'expiring';
     return 'valid';
+  }
+
+  // Novo: função para obter label do veículo
+  function getVehicleLabel(vehicle: any) {
+    if (!vehicle) return '';
+    // Exemplo: LDA-86-43-AA • Toyota Corolla
+    return `${vehicle.plate}${vehicle.brand ? ' • ' + vehicle.brand : ''}${vehicle.model ? ' ' + vehicle.model : ''}`;
+  }
+
+  // Função utilitária para formatar a data para o usuário
+  function formatDate(dateStr: string | null | undefined) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR');
   }
 
   if (loading) {
@@ -455,33 +487,33 @@ export default function DocumentsScreen() {
               {/* Seleção de Veículo */}
               <View style={{ marginHorizontal: 20, marginTop: 10, marginBottom: 20 }}>
                 <Text style={{ fontSize: 16, fontFamily: 'Inter-Medium', color: '#1F2937', marginBottom: 8 }}>
-                  Selecione o veículo relacionado *
+                  Veículo *
                 </Text>
                 {vehicles.length > 0 ? (
                   <RNPickerSelect
                     onValueChange={setSelectedVehicle}
                     value={selectedVehicle}
-                    placeholder={{ label: 'Selecione a matrícula', value: '' }}
-                    items={vehicles.map((v) => ({ label: v.plate, value: v.plate }))}
+                    placeholder={{ label: 'Escolha um veículo...', value: '' }}
+                    items={vehicles.map((v) => ({ label: getVehicleLabel(v), value: v.plate }))}
                     style={{
                       inputIOS: {
                         fontSize: 16,
-                        paddingVertical: 12,
-                        paddingHorizontal: 10,
-                        borderWidth: 1,
-                        borderColor: '#E2E8F0',
-                        borderRadius: 8,
+                        paddingVertical: 16,
+                        paddingHorizontal: 16,
+                        borderWidth: 2,
+                        borderColor: selectedVehicle ? '#2563EB' : '#E2E8F0',
+                        borderRadius: 10,
                         color: '#1F2937',
                         backgroundColor: '#F8FAFC',
                         marginBottom: 8,
                       },
                       inputAndroid: {
                         fontSize: 16,
-                        paddingHorizontal: 10,
-                        paddingVertical: 8,
-                        borderWidth: 1,
-                        borderColor: '#E2E8F0',
-                        borderRadius: 8,
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderWidth: 2,
+                        borderColor: selectedVehicle ? '#2563EB' : '#E2E8F0',
+                        borderRadius: 10,
                         color: '#1F2937',
                         backgroundColor: '#F8FAFC',
                         marginBottom: 8,
@@ -492,9 +524,7 @@ export default function DocumentsScreen() {
                     }}
                     useNativeAndroidPickerStyle={false}
                     Icon={() => (
-                      <View style={{ position: 'absolute', right: 10, top: 18 }}>
-                        <Text style={{ fontSize: 18, color: '#64748B' }}>▼</Text>
-                      </View>
+                      <Car size={20} color={selectedVehicle ? '#2563EB' : '#64748B'} style={{ position: 'absolute', right: 10, top: 18 }} />
                     )}
                     modalProps={{
                       presentationStyle: 'overFullScreen',
@@ -514,32 +544,27 @@ export default function DocumentsScreen() {
                 <RNPickerSelect
                   onValueChange={setSelectedType}
                   value={selectedType}
-                  placeholder={{ label: 'Selecione o tipo', value: '' }}
-                  items={[
-                    { label: 'Seguro', value: 'Seguro' },
-                    { label: 'Livrete', value: 'Livrete' },
-                    { label: 'Inspeção', value: 'Inspeção' },
-                    { label: 'Título de Propriedade', value: 'Título de Propriedade' },
-                  ]}
+                  placeholder={{ label: 'Escolha o tipo de documento...', value: '' }}
+                  items={documentTypesWithIcons.map((t) => ({ label: t.label, value: t.value, icon: t.icon }))}
                   style={{
                     inputIOS: {
                       fontSize: 16,
-                      paddingVertical: 12,
-                      paddingHorizontal: 10,
-                      borderWidth: 1,
-                      borderColor: '#E2E8F0',
-                      borderRadius: 8,
+                      paddingVertical: 16,
+                      paddingHorizontal: 16,
+                      borderWidth: 2,
+                      borderColor: selectedType ? '#2563EB' : '#E2E8F0',
+                      borderRadius: 10,
                       color: '#1F2937',
                       backgroundColor: '#F8FAFC',
                       marginBottom: 8,
                     },
                     inputAndroid: {
                       fontSize: 16,
-                      paddingHorizontal: 10,
-                      paddingVertical: 8,
-                      borderWidth: 1,
-                      borderColor: '#E2E8F0',
-                      borderRadius: 8,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      borderWidth: 2,
+                      borderColor: selectedType ? '#2563EB' : '#E2E8F0',
+                      borderRadius: 10,
                       color: '#1F2937',
                       backgroundColor: '#F8FAFC',
                       marginBottom: 8,
@@ -550,9 +575,7 @@ export default function DocumentsScreen() {
                   }}
                   useNativeAndroidPickerStyle={false}
                   Icon={() => (
-                    <View style={{ position: 'absolute', right: 10, top: 18 }}>
-                      <Text style={{ fontSize: 18, color: '#64748B' }}>▼</Text>
-                    </View>
+                    <FileText size={20} color={selectedType ? '#2563EB' : '#64748B'} style={{ position: 'absolute', right: 10, top: 18 }} />
                   )}
                   modalProps={{
                     presentationStyle: 'overFullScreen',
@@ -563,7 +586,7 @@ export default function DocumentsScreen() {
               </View>
 
               <View style={styles.uploadOptions}>
-                <TouchableOpacity style={styles.uploadOption} onPress={pickImage}>
+                <TouchableOpacity style={styles.uploadOption} onPress={handlePickImage}>
                   <Upload size={32} color="#059669" strokeWidth={2} />
                   <Text style={styles.uploadOptionTitle}>Selecionar Imagem</Text>
                   <Text style={styles.uploadOptionText}>
@@ -588,14 +611,14 @@ export default function DocumentsScreen() {
                 {Platform.OS === 'web' ? (
                   <TextInput
                     style={styles.dateInput}
-                    value={expiryDate}
+                    value={expiryDate ? formatDate(expiryDate) : ''}
                     onChangeText={setExpiryDate}
-                    placeholder="YYYY-MM-DD"
+                    placeholder="DD/MM/AAAA"
                   />
                 ) : (
                   <>
                     <TouchableOpacity onPress={() => setShowExpiryPicker(true)} style={styles.dateInput}>
-                      <Text style={{ color: expiryDate ? '#111' : '#888' }}>{expiryDate || 'Selecione a data'}</Text>
+                      <Text style={{ color: expiryDate ? '#111' : '#888' }}>{expiryDate ? formatDate(expiryDate) : 'Selecione a data'}</Text>
                     </TouchableOpacity>
                     {showExpiryPicker && (
                       <DateTimePicker
@@ -609,11 +632,6 @@ export default function DocumentsScreen() {
                       />
                     )}
                   </>
-                )}
-                {Platform.OS === 'web' && (
-                  <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-                    Formato: YYYY-MM-DD
-                  </Text>
                 )}
               </View>
 
